@@ -84,7 +84,7 @@ Before running the application, ensure that you have the following prerequisites
 1. Clone the repository:
 
 ```bash
-git clone [https://github.com/Idk507/health_bot](https://github.com/Idk507/health_bot)
+git clone https://github.com/Idk507/health_bot
 ```
 
 2. Navigate to the project directory:
