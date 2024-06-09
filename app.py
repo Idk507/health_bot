@@ -19,7 +19,7 @@ st.set_page_config(page_title="HealthCare Chatbot",layout="wide")
 
 st.title("HealthCare Chatbot")
 #create llm
-llm = CTransformers(model="llama-2-7b-chat.ggmlv3.q4_0.bin",model_type="llama",
+llm = CTransformers(model="llama-2-7b-chat.ggmlv3.q8_0.bin",model_type="llama",
                     config={'max_new_tokens':128,'temperature':0.01})
 
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
@@ -45,36 +45,58 @@ def initialize_session_state():
         st.session_state['past'] = ["Hey"]
 
 
+def listen_for(seconds: int):
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.write("Listening...")
+        audio_data = r.record(source, duration=seconds)
+    try:
+        text = r.recognize_google(audio_data)
+        st.write(f"You said: {text}")
+        return text
+    except sr.UnknownValueError:
+        st.warning("Sorry, I could not understand your speech.")
+    except sr.RequestError as e:
+        st.error(f"Could not request results from Google Speech Recognition service; {e}")
+    return ""
+
 def display_chat_history():
     reply_container = st.container()
     container = st.container()
 
     with container:
-        with st.form(key="my_form",clear_on_submit=True):
-            user_input = st.text_input("Question:",placeholder="Ask about you mental health",key="input")
-            audio_input = st.audio_recorder(label="Or record your question")
-
+        with st.form(key="my_form", clear_on_submit=True):
+            user_input = st.text_input("Question:", placeholder="Ask about your mental health", key="input")
+            use_voice_input = st.checkbox("Use voice input")
             submit_button = st.form_submit_button(label="Submit")
 
-            if submit_button and (user_input or audio_input):
-                if audio_input:
-                    r = sr.Recognizer()
-                    with sr.AudioFile(audio_input.to_wav().getvalue()) as source:
-                        audio_data = r.record(source)
-                    try:
-                        text = r.recognize_google(audio_data)
-                        output = conversation_chat(text)
-                    except sr.UnknownValueError:
-                        st.warning("Sorry, I could not understand your speech.")
+            if submit_button:
+                if use_voice_input:
+                    text = listen_for(5)
+                    if not text:
                         return
-                    except sr.RequestError as e:
-                        st.error("Could not request results from Google Speech Recognition service; {0}".format(e))
-                        return
-                else:
-                    output = conversation_chat(user_input)
+                    user_input = text
+                output = conversation_chat(user_input)
+
+                wiki_result = wikipedia.run(user_input)
+                duck_result = duckduckgo.run(user_input)
+
                 st.session_state['past'].append(user_input)
                 st.session_state['generated'].append(output)
+          
                 st.session_state['history'] = st.session_state['past'] + st.session_state['generated']
+
+    if st.session_state['generated']:
+        with reply_container:
+            for i in range(len(st.session_state['generated'])):
+                if i % 4 == 0:  # Changed to 4 to accommodate new messages
+                    message(st.session_state["past"][i // 4], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
+                else:
+                    message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
+
+initialize_session_state()
+# Chat history
+display_chat_history()
             
     if st.session_state['generated']:
         with reply_container:
